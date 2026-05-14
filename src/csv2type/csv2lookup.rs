@@ -7,7 +7,7 @@ use crate::utils::*;
 use parser_lib::csv::*;
 use syn::{Lit, parse_str};
 
-/// create function name like **lookup_size_enumname**, and the function will return the value based on the enum variant, 
+/// create function name like **lookup_size_<enumname>**, and the function will return the value based on the enum variant, 
 /// if the value is empty in csv, it will return None, otherwise it will return Some(value)
 fn create_lookup_function(names:&Vec<&str>, value:&Vec<&str>, ty:&Type, enum_ident:&Ident) -> TokenStream {
     let mut entries = Vec::new();
