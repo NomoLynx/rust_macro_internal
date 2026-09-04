@@ -68,7 +68,7 @@ pub fn expand(attr: TokenStream, input: TokenStream) -> TokenStream {
                 let size = entry.get_bit_spec().get_bit_size() as usize;
                 let function_name = Ident::new(&format!("set_{}_bits", name), Span::call_site());
                 let f = quote! {
-                    /// Set bits for field: #name
+                    #[doc= concat!("Set bits for field: ", stringify!(#name))]
                     pub fn #function_name(&mut self, value: u64) {
                         self.set_bit_range_value(#offset, #offset + #size, value);
                     }
