@@ -92,6 +92,36 @@ Most macros parse arguments as:
 
 The parser for macro arguments is implemented in `src/init_args.rs`.
 
+## Quick start
+
+A typical workflow is to keep source artifacts beside the Rust module that consumes them, then invoke the macro at compile time.
+
+```rust
+use rust_macro_internal::*;
+
+json_struct!("test_data/json/test0.json", JsonStruct);
+
+#[csv_struct("test_data/csv/test2.csv")]
+pub struct PersonRow {}
+
+const LOOKUP: std::sync::LazyLock<std::collections::HashMap<i64, i64>> =
+    std::sync::LazyLock::new(|| csv2hash!("test_data/csv/test2.csv", id, age));
+
+fn main() {
+    let user = JsonStruct::new(
+        "Alice".to_string(),
+        30,
+        false,
+        vec![95, 88, 76],
+    );
+
+    assert_eq!(user.name, "Alice");
+    assert_eq!(LOOKUP[&2], 28);
+}
+```
+
+This pattern is common in the CLR workspace: generated structs are created from data files and then consumed like regular Rust types.
+
 ## Usage examples
 
 ### JSON generated struct
@@ -169,6 +199,57 @@ use rust_macro_internal::*;
 #[packet_struct("src/r5asm/elf_section/program_header/program_header.mermaid")]
 pub struct ProgramHeader {}
 ```
+
+## Real project examples
+
+The CLR workspace uses these macros directly in the ELF/ISA code generation pipeline.
+
+### CSV-backed instruction metadata
+
+This is used in `riscv_asm_lib` to load instruction metadata from a CSV file and compute changed registers for a parsed instruction:
+
+```rust
+use rust_macro_internal::csv_struct;
+
+#[csv_struct("src/r5asm/meta/instruction_register.csv")]
+pub struct InstructionRegisterMeta {}
+
+fn example() {
+    let rows = InstructionRegisterMeta::to_typed_vec();
+    assert!(!rows.is_empty());
+}
+```
+
+This matches the actual code in [CLR/riscv_asm_lib/src/r5asm/meta/instruction_register_meta.rs](C:/MyCode/CodeCenter/F#/RiscVGit/CLR/riscv_asm_lib/src/r5asm/meta/instruction_register_meta.rs).
+
+### Packet layout generation for ELF program headers
+
+This pattern is used to define binary-safe packet/struct layouts from Mermaid diagrams:
+
+```rust
+use rust_macro_internal::*;
+
+#[packet_struct("src/r5asm/elf_section/program_header/program_header.mermaid")]
+#[repr(C)]
+pub struct ProgramHeader {}
+
+fn example() {
+    let header = ProgramHeader {
+        segment_type: 1,
+        segment_flags: 5,
+        file_offset: 0,
+        virtual_address: 0x1000,
+        physical_address: 0x1000,
+        file_size: 64,
+        memory_size: 64,
+        alignment: 0x1000,
+    };
+
+    let _ = header;
+}
+```
+
+This mirrors the pattern in [CLR/riscv_asm_lib/src/r5asm/elf_section/program_header/program_header.rs](C:/MyCode/CodeCenter/F#/RiscVGit/CLR/riscv_asm_lib/src/r5asm/elf_section/program_header/program_header.rs).
 
 ## Build and check
 
