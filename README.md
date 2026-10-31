@@ -28,14 +28,19 @@ This crate is a `proc-macro` library:
 proc-macro = true
 ```
 
+## Status
+
+This README is broadly aligned with the current crate implementation in the workspace. It reflects the exported proc-macros in `src/lib.rs` and the validation patterns used in the repo tests under `CLR/src/tests/test_macro`.
+
 ## Main capabilities
 
 - Generate enums/structs from INI files
 - Generate structs/enums/lookups from CSV files
-- Generate structs from JSON files
-- Generate state/flow-based code from Mermaid diagrams
+- Generate typed Rust structs from JSON files
+- Generate state machine helpers from Mermaid/state diagrams
 - Generate packet-layout structs and bit-vector helpers
 - Generate function scaffolding from sequence diagrams
+- Generate markdown-driven struct definitions and flow logic helpers
 
 ## Macro inventory
 
@@ -72,6 +77,11 @@ proc-macro = true
 - `#[packet_bit_vec("path/to/packet.mmd")]`
 - `#[sequence2function("path/to/sequence.mmd")]`
 
+### Markdown / flow helper macros
+
+- `#[md2struct("path/to/file.md", "RootType")]`
+- `flow2logic!("path/to/flow.mmd", FlowType, EventEnum, StateEnum)`
+
 ## Notes on arguments
 
 Most macros parse arguments as:
@@ -82,25 +92,82 @@ Most macros parse arguments as:
 
 The parser for macro arguments is implemented in `src/init_args.rs`.
 
-## Example usage
+## Usage examples
+
+### JSON generated struct
+
+This pattern is used directly by the repo tests in `CLR/src/tests/test_macro/test_json_macro.rs`:
 
 ```rust
-use rust_macro_internal::{json_struct, csv2hash};
+use rust_macro_internal::*;
 
-json_struct!("test_data/spec.json", ConfigRoot);
+json_struct!("test_data/json/test0.json", JsonStruct);
 
-const LOOKUP: std::sync::LazyLock<std::collections::HashMap<String, String>> =
-    std::sync::LazyLock::new(|| csv2hash!("test_data/table.csv", Key, Value));
+fn example() {
+    let value = JsonStruct::new(
+        "Alice".to_string(),
+        30,
+        false,
+        vec![95, 88, 76],
+    );
+
+    assert_eq!(value.name, "Alice");
+}
 ```
 
-```rust
-use rust_macro_internal::{ini_struct, state_struct};
+### CSV generated lookup and typed rows
 
-#[ini_struct("test_data/settings.ini")]
+```rust
+use rust_macro_internal::*;
+
+#[csv_struct("test_data/csv/test2.csv")]
+pub struct PersonRow {}
+
+let lookup = csv2hash!("test_data/csv/test2.csv", id, age);
+assert_eq!(lookup[&2], 28);
+```
+
+### INI generated struct
+
+```rust
+use rust_macro_internal::*;
+
+#[ini_struct("test_data/ini/struct0.ini")]
 pub struct Settings;
 
-#[state_struct("test_data/state_diagram.mmd")]
-pub struct MachineState;
+fn example() {
+    let settings = Settings::new();
+    let _ = settings;
+}
+```
+
+### State machine generation
+
+```rust
+use rust_macro_internal::{state_struct, state_struct_trait, state_type_mapping};
+
+#[state_struct("test_data/meriad/state/state0.mermaid")]
+pub struct StateMachine0 {}
+
+#[state_struct_trait("test_data/meriad/state/state0.mermaid")]
+pub struct StateMachine1 {}
+
+fn example() {
+    let mut machine = StateMachine0 {
+        current_state: StateMachine0StateEnum::Start,
+    };
+
+    machine.transit(&StateMachine0TriggerEvents::StartToStill);
+}
+```
+
+### Packet layout generation
+
+```rust
+use rust_macro_internal::*;
+
+#[packet_struct("src/r5asm/elf_section/program_header/program_header.mermaid")]
+pub struct ProgramHeader {}
 ```
 
 ## Build and check
