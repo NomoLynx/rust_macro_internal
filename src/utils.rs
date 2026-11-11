@@ -289,11 +289,12 @@ pub fn create_getters_with_names(fields:&Vec<(Ident, Type)>, column_names:&Vec<&
     let getters: Vec<_> = fields.iter().enumerate().map(|(index, (ident, ty))| {
         let column_name = column_names.get(index).unwrap_or(&"");
         let getter_name = Ident::new(&format!("get_{}", column_name), Span::call_site());
+        let doc_comment = create_doc_comment(&format!("Getter for column: {}", column_name));
         let is_primitive = is_primitive_scalar(ty);
         match convert_type(ty) {
             (Some(ty0), Some(postfix)) => {
                 quote! {
-                    /// Getter for column: #column_name
+                    #doc_comment
                     pub fn #getter_name(&self) -> #ty0 {
                         self.#ident.#postfix
                     }
@@ -301,7 +302,7 @@ pub fn create_getters_with_names(fields:&Vec<(Ident, Type)>, column_names:&Vec<&
             }
             (Some(ty0), None) => {
                 quote! {
-                    /// Getter for column: #column_name
+                    #doc_comment
                     pub fn #getter_name(&self) -> #ty0 {
                         &self.#ident
                     }
@@ -310,14 +311,14 @@ pub fn create_getters_with_names(fields:&Vec<(Ident, Type)>, column_names:&Vec<&
             (None, None) => {
                 if is_primitive {
                     quote! {
-                        /// Getter for column: #column_name
+                        #doc_comment
                         pub fn #getter_name(&self) -> #ty {
                             self.#ident
                         }
                     }
                 } else {
                      quote! {
-                        /// Getter for column: #column_name
+                        #doc_comment
                         pub fn #getter_name(&self) -> &#ty {
                             &self.#ident
                         }
