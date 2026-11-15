@@ -455,24 +455,8 @@ pub fn to_rust_enum_variant_name(s: &str) -> String {
 
 /// convert string to type name
 pub fn to_rust_type_name(s: &str, prefix:&str) -> String {
-    let mut result = String::new();
-    let mut capitalize_next = true;
-
-    for c in s.chars() {
-        if c.is_alphanumeric() {
-            if capitalize_next {
-                result.push(c.to_ascii_uppercase());
-                capitalize_next = false;
-            } else {
-                result.push(c.to_ascii_lowercase());
-            }
-        } else {
-            capitalize_next = true;
-        }
-    }
-
+    let mut result = core_utils::string::capitalize_first(s);
     result = format!("{}{}", prefix, result);
-
     result
 }
 
