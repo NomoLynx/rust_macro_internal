@@ -1,5 +1,5 @@
 use parser_lib::csv::*;
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Ident;
 
@@ -10,6 +10,7 @@ pub(super) fn gen_impl_to_vec(
     file_name: &str,
     fields: &Vec<(Ident, (InferredType, bool), usize)>,
     column_names: &Vec<&str>,
+    csv_file: &CSVFile,
 ) -> TokenStream {
     let fn_ident = Ident::new("new", struct_name.span());
 
@@ -65,7 +66,8 @@ pub(super) fn gen_impl_to_vec(
         TokenStream::new()
     } 
     else {
-        get_to_hash_typed_vec(struct_name, file_name, &get_fields, &key_name_function_name, &key_type_name)
+        let has_duplicated = col_has_duplication(csv_file);
+        get_to_hash_typed_vec(struct_name, file_name, &get_fields, &key_name_function_name, &key_type_name, has_duplicated)
     };
 
     quote! {
@@ -79,7 +81,7 @@ pub(super) fn gen_impl_to_vec(
             #setters_with_names
 
             #typed_vec_func
-            #hash_typed_vec_func
+            #hash_typed_vec_func           
         }
     }
 }
@@ -108,6 +110,10 @@ fn get_key_type_name(fields: &Vec<(Ident, (InferredType, bool), usize)>) -> Stri
     rust_type(ty, optional)
 }
 
+fn col_has_duplication(csv_file: &CSVFile) -> bool {
+    csv_file.has_duplicated_value(0)
+}
+
 fn get_to_typed_vec(struct_name: &Ident, file_name: &str, get_fields: &Vec<TokenStream>) -> TokenStream {
     quote! {
         pub fn to_typed_vec() -> Vec<Self> {
@@ -127,10 +133,12 @@ fn get_to_typed_vec(struct_name: &Ident, file_name: &str, get_fields: &Vec<Token
     }
 }
 
-fn get_to_hash_typed_vec(struct_name: &Ident, file_name: &str, get_fields: &Vec<TokenStream>, key_name_function: &str, key_type_name:&str) -> TokenStream {
-    let key_fn = make_ident(key_name_function, Span::call_site())
-                            .unwrap();
-    let key_type = make_ident(key_type_name, Span::call_site()).unwrap();
+fn get_to_hash_typed_vec(struct_name: &Ident, file_name: &str, get_fields: &Vec<TokenStream>, key_name_function: &str, key_type_name:&str, has_duplicated: bool) -> TokenStream {
+    let key_fn = ident_from_str(key_name_function);
+    let key_type = ident_from_str(key_type_name);
+
+    let warning = if has_duplicated { warning("keyword column has duplication") }
+                else { TokenStream::new() };
 
     quote! {
         pub fn to_indexed_typed_vec() -> IndexedStore<Self, #key_type, fn(&#struct_name) -> #key_type> {
@@ -147,5 +155,7 @@ fn get_to_hash_typed_vec(struct_name: &Ident, file_name: &str, get_fields: &Vec<
 
             result
         }
+
+        #warning
     }
 }

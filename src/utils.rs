@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -9,7 +10,7 @@ use syn::{Attribute, GenericArgument, Ident, ItemStruct, LitInt, LitStr, PathArg
 use syn::{Field, Fields};
 use syn::TypePath;
 use syn::Type;
-use quote::quote;
+use quote::{format_ident, quote};
 
 pub fn get_file_pathbuf(path_lit: &LitStr) -> Result<PathBuf, TokenStream> {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|_| {
@@ -511,4 +512,20 @@ pub fn to_rust_fn_name(input: &str) -> String {
 
 pub fn ident_from_str(s: &str) -> Ident {
     Ident::new(s, proc_macro2::Span::call_site())
+}
+
+static WARNING_ID: AtomicUsize = AtomicUsize::new(0);
+
+pub fn warning(message: &str) -> proc_macro2::TokenStream {
+    let id = WARNING_ID.fetch_add(1, Ordering::Relaxed);
+    let name = format_ident!("__DERIVE_WARNING_{}", id);
+
+    quote! {
+        const #name: () = {
+            #[deprecated(note = #message)]
+            const fn warn() {}
+
+            warn();
+        };
+    }
 }

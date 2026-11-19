@@ -15,8 +15,9 @@ fn gen_impl_to_vec(
     file_name: &str,
     fields: &Vec<(Ident, (InferredType, bool), usize)>,
     column_names: &Vec<&str>,
+    csv_file: &CSVFile,
 ) -> TokenStream {
-    shared::gen_impl_to_vec(struct_name, file_name, fields, column_names)
+    shared::gen_impl_to_vec(struct_name, file_name, fields, column_names, csv_file)
 }
 
 /// process the type as return type, if T is primitive type, return T, otehrwise, return &T
@@ -210,8 +211,7 @@ pub fn expand(args : InitArgs2LitStr, mut s :ItemStruct ) -> TokenStream {
                 let field_type_str = rust_type(infered_type.0, infered_type.1);
 
                 let excel_index = col_index + 1;
-                let field_name = format!("field_{}", excel_index);
-                let field_ident = syn::Ident::new(&field_name, proc_macro2::Span::call_site());
+                let field_ident = ident_from_str(&format!("field_{}", excel_index));
                 let field_type= match string_to_type(&field_type_str) {
                     Ok(t) => t,
                     Err(err) => return err.into(),
@@ -247,7 +247,7 @@ pub fn expand(args : InitArgs2LitStr, mut s :ItemStruct ) -> TokenStream {
             let column_names_refs: Vec<&str> = column_names.iter().map(|s| s.as_str()).collect();
             let struct_name = &s.ident;
             let file_path = path.display().to_string();
-            let impl_block = gen_impl_to_vec(struct_name, &file_path, &fields, &column_names_refs);
+            let impl_block = gen_impl_to_vec(struct_name, &file_path, &fields, &column_names_refs, &col_csv_file);
 
             quote! { #s
                     #impl_block
