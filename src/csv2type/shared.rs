@@ -58,6 +58,7 @@ pub(super) fn gen_impl_to_vec(
 
     let getters_with_names = create_getters_with_names(&fields2, column_names);
     let setters_with_names = create_setters_with_names(&fields2, column_names);
+    let typed_vec_func = get_to_typed_vec(struct_name, file_name, &get_fields);
 
     quote! {
         impl #struct_name {
@@ -69,20 +70,26 @@ pub(super) fn gen_impl_to_vec(
             #getters_with_names
             #setters_with_names
 
-            pub fn to_typed_vec() -> Vec<Self> {
-                let csv_file = parser_lib::csv::parse_csv_file(#file_name)
-                    .expect("Failed to parse CSV file");
+            #typed_vec_func
+        }
+    }
+}
 
-                let mut result = vec![];
-                for record in csv_file.get_data_records() {
-                    result.push(
-                        #struct_name::new(
-                        #(#get_fields),*
-                    ));
-                }
+fn get_to_typed_vec(struct_name: &Ident, file_name: &str, get_fields: &Vec<TokenStream>) -> TokenStream {
+    quote! {
+        pub fn to_typed_vec() -> Vec<Self> {
+            let csv_file = parser_lib::csv::parse_csv_file(#file_name)
+                .expect("Failed to parse CSV file");
 
-                result
+            let mut result = vec![];
+            for record in csv_file.get_data_records() {
+                result.push(
+                    #struct_name::new(
+                    #(#get_fields),*
+                ));
             }
+
+            result
         }
     }
 }
